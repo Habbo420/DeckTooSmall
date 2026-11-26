@@ -1,0 +1,17 @@
+{
+    "$schema": "https://moddbcdn.vintagestory.at/schema/modinfo.latest.json",
+    "type": "Code",
+    "modid": "decktoosmall",
+    "name": "DeckTooSmall",
+    "authors": [
+        "Unknown"
+    ],
+    "description": "Makes the UI usable on small screens such as the Steam Deck.",
+    "version": "2.0.0",
+    "side": "Client",
+    "requiredOnClient": true,
+    "requiredOnServer": false,
+    "dependencies": {
+        "game": "1.22.0"
+    }
+}

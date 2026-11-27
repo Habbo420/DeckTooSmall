@@ -13,6 +13,8 @@ By HanniHanni.
 - **F9**: settings window (turn the mod on or off, sizes per window and per part)
 - `.dts help` in chat: the same settings as commands
 
+Keys and commands: [short version](docs/keys-and-commands-short.md) or [full list](docs/keys-and-commands.md).
+
 ## Building
 
 Needs the .NET 10 SDK, and `VINTAGE_STORY` set to the game's install folder.

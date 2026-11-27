@@ -7,35 +7,28 @@ By HanniHanni.
 
 ## Screenshots
 
-Taken on a 1280x800 screen.
+Taken on a 1280x800 screen. Click one to see it full size.
 
-**Settings window (F9)**
+<table>
+<tr>
+<td align="center" width="50%"><a href="docs/screenshots/settings-window.jpg"><img src="docs/screenshots/settings-window.jpg" alt="Settings window (F9)"></a><br><sub>Settings window (F9)</sub></td>
+<td align="center" width="50%"><a href="docs/screenshots/handbook-full-screen.jpg"><img src="docs/screenshots/handbook-full-screen.jpg" alt="Full-screen Handbook"></a><br><sub>Full-screen Handbook</sub></td>
+</tr>
+<tr>
+<td align="center" width="50%"><a href="docs/screenshots/world-map-full-screen.jpg"><img src="docs/screenshots/world-map-full-screen.jpg" alt="Full-screen world map"></a><br><sub>Full-screen world map</sub></td>
+<td align="center" width="50%"><a href="docs/screenshots/character-and-inventory.jpg"><img src="docs/screenshots/character-and-inventory.jpg" alt="Character screen and inventory"></a><br><sub>Character screen and inventory</sub></td>
+</tr>
+</table>
 
-![Settings window (F9)](docs/screenshots/settings-window.jpg)
+The character screen at three sizes:
 
-**Full-screen Survival Handbook**
-
-![Full-screen Survival Handbook](docs/screenshots/handbook-full-screen.jpg)
-
-**Full-screen world map**
-
-![Full-screen world map](docs/screenshots/world-map-full-screen.jpg)
-
-**Character screen and inventory side by side**
-
-![Character screen and inventory side by side](docs/screenshots/character-and-inventory.jpg)
-
-**Character screen**
-
-![Character screen](docs/screenshots/character-size-1.jpg)
-
-**Character screen, one size up**
-
-![Character screen, one size up](docs/screenshots/character-size-2.jpg)
-
-**Character screen, larger again**
-
-![Character screen, larger again](docs/screenshots/character-size-3.jpg)
+<table>
+<tr>
+<td align="center" width="33%"><a href="docs/screenshots/character-size-1.jpg"><img src="docs/screenshots/character-size-1.jpg" alt="Size 1"></a><br><sub>Size 1</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/character-size-2.jpg"><img src="docs/screenshots/character-size-2.jpg" alt="Size 2"></a><br><sub>Size 2</sub></td>
+<td align="center" width="33%"><a href="docs/screenshots/character-size-3.jpg"><img src="docs/screenshots/character-size-3.jpg" alt="Size 3"></a><br><sub>Size 3</sub></td>
+</tr>
+</table>
 
 ## Using it
 

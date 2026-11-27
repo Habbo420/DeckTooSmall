@@ -54,6 +54,7 @@ internal static class DialogFit
     private static readonly Dictionary<string, double> logged = new();
     private static readonly List<GuiDialog> openOrder = new();
     private static int redirected;
+    private static string lastCharacterSizes = "";
 
     public static void Apply(Harmony harmony, ICoreClientAPI api)
     {
@@ -120,6 +121,8 @@ internal static class DialogFit
         double left = double.MaxValue, top = double.MaxValue;
         double right = double.MinValue, bottom = double.MinValue;
 
+        ArrangeCharacterScreen(dialog);
+
         void Include(ElementBounds? b)
         {
             if (b == null || b.OuterWidth <= 0 || b.OuterHeight <= 0) return;
@@ -152,16 +155,20 @@ internal static class DialogFit
     // The tool picker pops up around the crosshair, so it should stay there.
     private static bool StaysPut(GuiDialog dialog) => dialog.GetType().Name == "GuiDialogToolMode";
 
-    // On the character screen the game can place the Environment panel on top of
-    // the bottom of the character panel. Move it below everything in that panel.
-    private static void KeepEnvironmentBelow(GuiDialog dialog)
+    // The game places the character screen's side panels once, from numbers that
+    // can be out of date after a size change, leaving overlaps or gaps. So we
+    // place them ourselves: Stats right beside the character panel, Environment
+    // right under it. Safe to repeat; nothing moves if already in place.
+    private static void ArrangeCharacterScreen(GuiDialog dialog)
     {
         if (!On || dialog is not GuiDialogCharacterBase) return;
         GuiComposer? main = dialog.Composers["playercharacter"];
-        GuiComposer? environment = dialog.Composers["environment"];
-        if (main == null || environment == null) return;
+        if (main == null) return;
 
-        double bottom = main.Bounds.renderY + main.Bounds.OuterHeight;
+        double gap = 5 * RuntimeEnv.GUIScale;
+
+        // Where the character panel visibly ends: its background and contents.
+        double bottom = main.Bounds.renderY;
         foreach (var parts in new[] { elements(main), fixedElements(main) })
         {
             foreach (GuiElement element in parts.Values)
@@ -169,15 +176,39 @@ internal static class DialogFit
                 bottom = Math.Max(bottom, element.Bounds.renderY + element.Bounds.OuterHeight);
             }
         }
+        double right = main.Bounds.renderX + main.Bounds.OuterWidth;
 
-        double overlap = bottom + 5 * RuntimeEnv.GUIScale - environment.Bounds.renderY;
-        if (overlap < 1) return;
+        if (dialog.Composers["environment"] is { } environment)
+        {
+            MoveTo(environment, main.Bounds.renderX, bottom + gap);
+            right = Math.Max(right, environment.Bounds.renderX + environment.Bounds.OuterWidth);
+        }
+        if (dialog.Composers["playerstats"] is { } stats)
+        {
+            MoveTo(stats, right + gap, main.Bounds.renderY);
+        }
 
-        environment.Bounds.fixedY += overlap / RuntimeEnv.GUIScale;
-        environment.Bounds.MarkDirtyRecursive();
-        environment.Bounds.CalcWorldBounds();
-        capi.Logger.Notification("[DeckTooSmall] Moved the Environment panel down {0:0} pixels (character panel is {1:0} high, contents reach {2:0})",
-            overlap, main.Bounds.OuterHeight, bottom - main.Bounds.renderY);
+        // For finding faults: written once each time the sizes change.
+        string sizes = $"character {main.Bounds.OuterWidth:0}x{main.Bounds.OuterHeight:0}, contents end at {bottom - main.Bounds.renderY:0}, scale {RuntimeEnv.GUIScale:0.###}";
+        if (sizes != lastCharacterSizes)
+        {
+            lastCharacterSizes = sizes;
+            capi.Logger.Notification("[DeckTooSmall] Character screen: " + sizes);
+        }
+    }
+
+    private static void MoveTo(GuiComposer composer, double x, double y)
+    {
+        ElementBounds bounds = composer.Bounds;
+        double dx = x - bounds.renderX;
+        double dy = y - bounds.renderY;
+        if (Math.Abs(dx) < 1 && Math.Abs(dy) < 1) return;
+
+        // Offsets are stored before GUI scaling, so divide by the scale.
+        bounds.fixedOffsetX += dx / RuntimeEnv.GUIScale;
+        bounds.fixedOffsetY += dy / RuntimeEnv.GUIScale;
+        bounds.MarkDirtyRecursive();
+        bounds.CalcWorldBounds();
     }
 
     // The hotbar and the health/food bars above it.
@@ -314,7 +345,6 @@ internal static class DialogFit
     // Same, but also draws smaller.
     private static void DrawWithFit(GuiDialog dialog, Action draw)
     {
-        if (dialog.IsOpened()) KeepEnvironmentBelow(dialog);
         FitTransform fit = Measure(dialog);
         if (fit == FitTransform.None)
         {

@@ -11,6 +11,9 @@ public class DeckTooSmallConfig
     // The main size, used by all menus unless they have their own.
     public float UiScale { get; set; } = 1.25f;
 
+    // The main size you chose on each screen, for example "1280x800".
+    public Dictionary<string, float> ScreenSizes { get; set; } = new();
+
     // Your own GUI Scale, remembered while the mod's size is in use.
     public float? GameScale { get; set; }
 

@@ -14,6 +14,7 @@ internal static class Commands
         ".dts  (open the settings window)\n" +
         ".dts on / off\n" +
         ".dts size 10  (all menus)\n" +
+        ".dts preset compact / recommended / large\n" +
         ".dts hotbar 12\n" +
         ".dts hotbar keep  (stay at that size)\n" +
         ".dts hotbar follow  (change with the main size again)\n" +
@@ -54,6 +55,10 @@ internal static class Commands
             case "reset":
                 ui.Reset();
                 return TextCommandResult.Success("Window and text sizes follow the main size again");
+            case "preset":
+                if (!Screens.Presets.Any(p => p.Key == value)) return TextCommandResult.Error("Use compact, recommended or large");
+                ui.UsePreset(value);
+                return TextCommandResult.Success(Status(ui));
             case "size":
                 if (!isNumber) return TextCommandResult.Error("Type a number, for example: .dts size 10");
                 ui.SetMain(scale);
@@ -89,7 +94,7 @@ internal static class Commands
         string Line(string name, SizeRule rule) =>
             $"\n{name}: {rule.Actual(main) / UiSize.Unit:0.#}{(rule.Keep ? " (kept)" : "")}";
 
-        return $"Mod {(ui.Enabled ? "on" : "off")}\nsize: {main / UiSize.Unit:0.#}"
+        return $"Mod {(ui.Enabled ? "on" : "off")}\nscreen: {ui.ScreenName()}\nsize: {main / UiSize.Unit:0.#}"
             + Line("text", ui.Config.Text)
             + string.Concat(Group.All.Select(g => Line(g.Key, ui.Config.Window(g.Key))))
             + string.Concat(Parts.All.Select(p =>

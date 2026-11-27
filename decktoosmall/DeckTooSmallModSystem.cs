@@ -59,11 +59,11 @@ public class DeckTooSmallModSystem : ModSystem
 
         Hotkey("decktoosmall-bigger", "DeckTooSmall: bigger UI", GlKeys.F8, () =>
         {
-            if (ui.Enabled) ui.SetMain(ui.Config.UiScale + UiSize.Unit);
+            if (ui.Enabled) ui.SetMain(UiSize.StepMain(ui.Config.UiScale, 1));
         });
         Hotkey("decktoosmall-smaller", "DeckTooSmall: smaller UI", GlKeys.F7, () =>
         {
-            if (ui.Enabled) ui.SetMain(ui.Config.UiScale - UiSize.Unit);
+            if (ui.Enabled) ui.SetMain(UiSize.StepMain(ui.Config.UiScale, -1));
         });
         Hotkey("decktoosmall-settings", "DeckTooSmall: settings", GlKeys.F9, () =>
         {

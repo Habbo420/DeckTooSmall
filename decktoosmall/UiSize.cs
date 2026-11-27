@@ -18,9 +18,18 @@ internal sealed class UiSize
     private const string Setting = "guiScale";
 
     public const float Unit = 0.125f; // 1 on the game's slider
-    private const float MainSmallest = 4 * Unit, MainLargest = 16 * Unit;
-    private const float WindowSmallest = 4 * Unit, WindowLargest = 24 * Unit;
-    private const float TextSmallest = 6 * Unit, TextLargest = 16 * Unit;
+    private const float MainSmallest = Screens.Smallest * Unit, MainLargest = Screens.Largest * Unit;
+    private const float WindowSmallest = 4 * Unit, WindowLargest = 36 * Unit;
+    private const double TextSmallest = 0.6, TextLargest = 2; // compared with the main size
+
+    // How far one press of - or + goes, in slider units.
+    private const float MainStep = 0.5f, FineStep = 0.1f;
+
+    public static float StepMain(float size, int direction) => Stepped(size, direction * MainStep);
+    public static float StepFine(float size, int direction) => Stepped(size, direction * FineStep);
+
+    // Rounds first, so tiny calculation errors never build up.
+    private static float Stepped(float size, float units) => ((float)Math.Round(size / Unit, 1) + units) * Unit;
 
     // Rebuilding every menu takes a moment, so wait until presses stop.
     private const int WaitMilliseconds = 350;
@@ -29,6 +38,10 @@ internal sealed class UiSize
     private bool active;
     private bool applying;
     private long pending; // the waiting "rebuild" timer, 0 if none
+    private long screenCheck;
+    private string screen = "";     // the screen size the current main size is for
+    private string lastSeen = "";
+    private readonly bool hadSettings;
 
     public DeckTooSmallConfig Config { get; }
     public bool Enabled => Config.Enabled;
@@ -41,7 +54,9 @@ internal sealed class UiSize
         this.capi = capi;
         try
         {
-            Config = capi.LoadModConfig<DeckTooSmallConfig>(ConfigFile) ?? new DeckTooSmallConfig();
+            DeckTooSmallConfig? saved = capi.LoadModConfig<DeckTooSmallConfig>(ConfigFile);
+            hadSettings = saved != null;
+            Config = saved ?? new DeckTooSmallConfig();
         }
         catch (Exception e)
         {
@@ -59,10 +74,61 @@ internal sealed class UiSize
         bool leftOver = Config.GameScale != null && Math.Abs(current - Config.UiScale) < 0.001f;
         if (!leftOver) Config.GameScale = Enabled ? current : null;
 
+        // Settings from an earlier version: keep your size for this screen.
+        screen = lastSeen = ScreenName();
+        if (hadSettings && Config.ScreenSizes.Count == 0) Config.ScreenSizes[screen] = Config.UiScale;
+        UseSizeForScreen();
+
         active = true;
+        // Notices when the screen changes, for example when docking.
+        screenCheck = capi.Event.RegisterGameTickListener(_ => CheckScreen(), 1000);
         capi.Settings.AddWatcher<float>(Setting, OnSliderMoved);
         capi.Event.LeaveWorld += Restore;
         ApplyNow();
+    }
+
+    // ---- Screens ----
+
+    public string ScreenName() => capi.Render.FrameWidth + "x" + capi.Render.FrameHeight;
+
+    // Your saved size for this screen, or else the recommended one.
+    private void UseSizeForScreen()
+    {
+        if (capi.Render.FrameWidth <= 0 || capi.Render.FrameHeight <= 0) return;
+        Config.UiScale = Config.ScreenSizes.TryGetValue(screen, out float saved)
+            ? Math.Clamp(saved, MainSmallest, MainLargest)
+            : Screens.Recommended(capi.Render.FrameWidth, capi.Render.FrameHeight) * Unit;
+    }
+
+    private void CheckScreen()
+    {
+        if (capi.Render.FrameWidth <= 0 || capi.Render.FrameHeight <= 0) return; // minimised
+
+        // Wait until the size has stopped changing (a window being dragged).
+        string now = ScreenName();
+        bool settled = now == lastSeen;
+        lastSeen = now;
+        if (!settled || now == screen) return;
+
+        screen = now;
+        UseSizeForScreen();
+        Schedule();
+    }
+
+    public void UsePreset(string key)
+    {
+        var preset = Screens.Presets.First(p => p.Key == key);
+        // "Recommended" forgets your own choice, so the mod picks again.
+        if (key == "recommended")
+        {
+            Config.ScreenSizes.Remove(screen);
+            UseSizeForScreen();
+            Schedule();
+        }
+        else
+        {
+            SetMain(Screens.Recommended(capi.Render.FrameWidth, capi.Render.FrameHeight, preset.Share) * Unit);
+        }
     }
 
     // ---- Changes ----
@@ -76,12 +142,14 @@ internal sealed class UiSize
     public void SetMain(float scale)
     {
         Config.UiScale = Math.Clamp(scale, MainSmallest, MainLargest);
+        Config.ScreenSizes[screen] = Config.UiScale;
         Schedule();
     }
 
     public void SetText(float scale)
     {
-        Config.Text.Set(Config.UiScale, Math.Clamp(scale, TextSmallest, TextLargest));
+        float main = Config.UiScale;
+        Config.Text.Set(main, Math.Clamp(scale, main * (float)TextSmallest, main * (float)TextLargest));
         Schedule();
     }
 
@@ -170,7 +238,7 @@ internal sealed class UiSize
     private void ApplyNow()
     {
         TextSize.Factor = Enabled
-            ? Math.Clamp(Config.Text.Actual(Config.UiScale) / Config.UiScale, 0.6, 2)
+            ? Math.Clamp(Config.Text.Actual(Config.UiScale) / Config.UiScale, TextSmallest, TextLargest)
             : 1;
         if (Enabled) Parts.Set(PartFactor("titlebars"), PartFactor("buttons"), PartFactor("slots"));
         else Parts.Reset();
@@ -226,6 +294,7 @@ internal sealed class UiSize
     {
         if (!active || applying || !Enabled) return;
         Config.UiScale = Math.Clamp(value, MainSmallest, MainLargest);
+        Config.ScreenSizes[screen] = Config.UiScale;
         Save();
         Changed?.Invoke();
     }
@@ -236,6 +305,7 @@ internal sealed class UiSize
         active = false;
         CancelPending();
         capi.Event.LeaveWorld -= Restore;
+        capi.Event.UnregisterGameTickListener(screenCheck);
         TextSize.Factor = 1;
         Parts.Reset();
 

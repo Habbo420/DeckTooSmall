@@ -5,6 +5,38 @@ A client-side Vintage Story mod that makes the menus usable on the Steam Deck's
 
 By HanniHanni.
 
+## Screenshots
+
+Taken on a 1280x800 screen.
+
+**Settings window (F9)**
+
+![Settings window (F9)](docs/screenshots/settings-window.jpg)
+
+**Full-screen Survival Handbook**
+
+![Full-screen Survival Handbook](docs/screenshots/handbook-full-screen.jpg)
+
+**Full-screen world map**
+
+![Full-screen world map](docs/screenshots/world-map-full-screen.jpg)
+
+**Character screen and inventory side by side**
+
+![Character screen and inventory side by side](docs/screenshots/character-and-inventory.jpg)
+
+**Character screen**
+
+![Character screen](docs/screenshots/character-size-1.jpg)
+
+**Character screen, one size up**
+
+![Character screen, one size up](docs/screenshots/character-size-2.jpg)
+
+**Character screen, larger again**
+
+![Character screen, larger again](docs/screenshots/character-size-3.jpg)
+
 ## Using it
 
 - **F7 / F8**: smaller / bigger UI

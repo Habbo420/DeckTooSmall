@@ -4,10 +4,10 @@
     "modid": "decktoosmall",
     "name": "DeckTooSmall",
     "authors": [
-        "Unknown"
+        "HanniHanni"
     ],
     "description": "Makes the UI usable on small screens such as the Steam Deck.",
-    "version": "2.2.3",
+    "version": "2.2.6",
     "side": "Client",
     "requiredOnClient": true,
     "requiredOnServer": false,

@@ -139,6 +139,29 @@ internal sealed class UiSize
         Schedule();
     }
 
+    // Takes effect the next time the map is opened.
+    public void SetFullMap(bool on)
+    {
+        Config.FullScreenMap = on;
+        Save();
+        Changed?.Invoke();
+    }
+
+    // Takes effect the next time the Handbook is opened.
+    public void SetFullHandbook(bool on)
+    {
+        Config.FullScreenHandbook = on;
+        Save();
+        Changed?.Invoke();
+    }
+
+    public void SetFullSettings(bool on)
+    {
+        Config.FullScreenSettings = on;
+        Save();
+        Changed?.Invoke();
+    }
+
     public void SetMain(float scale)
     {
         Config.UiScale = Math.Clamp(scale, MainSmallest, MainLargest);

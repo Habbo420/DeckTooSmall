@@ -1,12 +1,19 @@
 using System;
 using Vintagestory.API.Client;
+using Vintagestory.API.Config;
 
 namespace DeckTooSmall;
 
 // The mod's own settings window, opened with F9 or the ".dts" chat command.
+// When set to full screen, everything in it is sized from the screen, not from
+// "All menus", so it always fits and stays easy to press. Otherwise it is an
+// ordinary window.
 internal sealed class SettingsWindow : GuiDialog
 {
-    private const double RowHeight = 38;
+    private const double RowHeight = 40;
+    // The space the layout needs before it is enlarged to fill the screen.
+    private const double LayoutWidth = 850, LayoutHeight = 570;
+    private string builtFor = ""; // screen and scale the window was built for
 
     private readonly UiSize ui;
 
@@ -21,6 +28,14 @@ internal sealed class SettingsWindow : GuiDialog
 
     public override bool PrefersUngrabbedMouse => true;
 
+    // Drawn above other windows.
+    public override double DrawOrder => 0.9;
+
+    public bool FullScreen => ui.Config.FullScreenSettings;
+
+    // What the layout depends on. A change means the window must be built again.
+    private string LayoutKey() => ui.ScreenName() + "@" + RuntimeEnv.GUIScale + " " + FullScreen;
+
     public override void OnGuiOpened()
     {
         Build();
@@ -29,18 +44,37 @@ internal sealed class SettingsWindow : GuiDialog
 
     private void Build()
     {
-        ElementBounds background = ElementBounds.Fill.WithFixedPadding(GuiStyle.ElementToDialogPadding);
-        background.BothSizing = ElementSizing.FitToChildren;
+        builtFor = LayoutKey();
+
+        // The screen, measured in the units the game lays windows out with.
+        double padding = GuiStyle.ElementToDialogPadding;
+        double innerWidth = capi.Render.FrameWidth / RuntimeEnv.GUIScale - 2 * padding;
+        double innerHeight = capi.Render.FrameHeight / RuntimeEnv.GUIScale - 2 * padding;
+        // How much to enlarge the layout.
+        double k = FullScreen ? Math.Min(innerWidth / LayoutWidth, innerHeight / LayoutHeight) : 1;
+
+        ElementBounds background;
+        if (FullScreen)
+        {
+            background = ElementBounds.Fixed(0, 0, innerWidth, innerHeight).WithFixedPadding(padding);
+        }
+        else
+        {
+            background = ElementBounds.Fill.WithFixedPadding(padding);
+            background.BothSizing = ElementSizing.FitToChildren; // just big enough
+        }
         ElementBounds window = ElementStdBounds.AutosizedMainDialog.WithAlignment(EnumDialogArea.CenterMiddle);
 
         CairoFont font = CairoFont.WhiteSmallText();
-        const double Right = 450; // where the second column starts
+        font.UnscaledFontsize *= k;
+        // Where the second column starts: halfway across.
+        double secondColumn = FullScreen ? Math.Max(450, innerWidth / k / 2) : 450;
         double x = 0, y = 30;
 
         // Every element goes inside "background", which grows to hold them.
         ElementBounds At(double left, double top, double width, double height = 28)
         {
-            ElementBounds bounds = ElementBounds.Fixed(x + left, top, width, height);
+            ElementBounds bounds = ElementBounds.Fixed((x + left) * k, top * k, width * k, height * k);
             background.WithChild(bounds);
             return bounds;
         }
@@ -49,6 +83,12 @@ internal sealed class SettingsWindow : GuiDialog
             .AddShadedDialogBG(background)
             .AddDialogTitleBar("DeckTooSmall", () => TryClose())
             .BeginChildElements(background);
+
+        void Button(string label, Action press, ElementBounds bounds) =>
+            composer.AddButton(label, () => { press(); return true; }, bounds, font.Clone().WithOrientation(EnumTextOrientation.Center), EnumButtonStyle.Small);
+
+        void Switch(Action<bool> toggled, double left, double top, string key) =>
+            composer.AddSwitch(toggled, At(left, top, 30), key, 30 * k);
 
         void Heading(string title)
         {
@@ -61,27 +101,40 @@ internal sealed class SettingsWindow : GuiDialog
         // "change" is given -1 or +1.
         void Row(string key, string label, Action<int> change, Action<bool>? keep)
         {
-            composer.AddStaticText(label, font, At(0, y + 4, 190))
-                .AddSmallButton("-", () => { change(-1); return true; }, At(195, y, 32))
-                .AddDynamicText("", font.Clone().WithOrientation(EnumTextOrientation.Center), At(240, y + 4, 55), key)
-                .AddSmallButton("+", () => { change(1); return true; }, At(308, y, 32));
-            if (keep != null) composer.AddSwitch(keep, At(365, y, 30), key + "-keep");
+            composer.AddStaticText(label, font, At(0, y + 4, 190));
+            Button("-", () => change(-1), At(195, y, 36));
+            composer.AddDynamicText("", font.Clone().WithOrientation(EnumTextOrientation.Center), At(240, y + 4, 55), key);
+            Button("+", () => change(1), At(303, y, 36));
+            if (keep != null) Switch(keep, 365, y, key + "-keep");
             y += RowHeight;
         }
 
         // First column: general settings.
-        composer.AddStaticText("Mod enabled", font, At(0, y + 4, 220))
-            .AddSwitch(on => ui.SetEnabled(on), At(240, y, 30), "enabled");
+        composer.AddStaticText("Mod enabled", font, At(0, y + 4, 230));
+        Switch(on => ui.SetEnabled(on), 240, y, "enabled");
         y += RowHeight;
+        composer.AddStaticText("Full screen:", font, At(0, y + 4, 230));
+        y += 26;
+        void FullRow(string label, Action<bool> toggled, string key)
+        {
+            composer.AddStaticText(label, font, At(20, y + 4, 210));
+            Switch(toggled, 240, y, key);
+            y += RowHeight;
+        }
+        FullRow("World map", on => ui.SetFullMap(on), "fullmap");
+        FullRow("Handbook", on => ui.SetFullHandbook(on), "fullhandbook");
+        FullRow("This window", on => ui.SetFullSettings(on), "fullsettings");
 
         composer.AddDynamicText("", font, At(0, y + 4, 400), "screen");
         y += RowHeight - 6;
-        for (int i = 0; i < Screens.Presets.Length; i++)
+        // One under the other: a button's width depends on its text and your size
+        // settings, so side by side they could run into each other.
+        foreach (var preset in Screens.Presets)
         {
-            var preset = Screens.Presets[i];
-            composer.AddSmallButton(preset.Label, () => { ui.UsePreset(preset.Key); return true; }, At(i * 135, y, 110));
+            Button(preset.Label, () => ui.UsePreset(preset.Key), At(0, y, 180));
+            y += RowHeight;
         }
-        y += RowHeight + 8;
+        y += 8;
 
         Heading("");
         Row("main", "All menus", d => ui.SetMain(UiSize.StepMain(ui.Config.UiScale, d)), null);
@@ -90,11 +143,11 @@ internal sealed class SettingsWindow : GuiDialog
             on => ui.SetTextKeep(on));
 
         y += 8;
-        composer.AddSmallButton("Reset sizes", () => { ui.Reset(); return true; }, At(0, y, 130))
-            .AddSmallButton("Close", () => TryClose(), At(270, y, 100));
+        Button("Reset sizes", () => ui.Reset(), At(0, y, 150));
+        Button("Close", () => TryClose(), At(240, y, 120));
 
         // Second column: windows, then parts of windows.
-        x = Right;
+        x = secondColumn;
         y = 30;
         Heading("Windows");
         foreach ((string key, string label) in Group.All)
@@ -124,11 +177,24 @@ internal sealed class SettingsWindow : GuiDialog
     {
         if (SingleComposer == null || !IsOpened() && !SingleComposer.Composed) return;
 
+        // After a change that affects the layout, build the window again. Not right
+        // now: we may be in the middle of handling a click on this very window.
+        if (IsOpened() && builtFor != LayoutKey())
+        {
+            capi.Event.RegisterCallback(_ =>
+            {
+                if (IsOpened() && builtFor != LayoutKey()) Build();
+            }, 50, true);
+        }
+
         float main = ui.Config.UiScale;
         void Show(string key, float scale) =>
             SingleComposer.GetDynamicText(key).SetNewText((scale / UiSize.Unit).ToString("0.#"));
 
         SingleComposer.GetSwitch("enabled").SetValue(ui.Enabled);
+        SingleComposer.GetSwitch("fullmap").SetValue(ui.Config.FullScreenMap);
+        SingleComposer.GetSwitch("fullhandbook").SetValue(ui.Config.FullScreenHandbook);
+        SingleComposer.GetSwitch("fullsettings").SetValue(FullScreen);
         SingleComposer.GetDynamicText("screen").SetNewText("Your screen: " + ui.ScreenName() + ". Presets:");
         Show("main", main);
         Show("text", ui.Config.Text.Actual(main));

@@ -21,6 +21,8 @@ public class DeckTooSmallModSystem : ModSystem
             DialogFit.Apply(harmony, api);
             TextSize.Apply(harmony);
             Parts.Apply(harmony);
+            FullMap.Apply(harmony, api);
+            FullHandbook.Apply(harmony, api);
             DialogFit.Ui = ui;
 
             // Only change the size once the windows are sure to fit the screen.

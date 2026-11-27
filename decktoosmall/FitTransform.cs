@@ -38,6 +38,15 @@ internal readonly record struct FitTransform(double Scale, double X, double Y)
         return new FitTransform(scale, Math.Round((1 - scale) * screenWidth / 2), Math.Round((1 - scale) * screenHeight));
     }
 
+    // Resizes something that sits near a screen corner, keeping it in that corner.
+    public static FitTransform FromCorner(double scale, bool rightSide, bool bottomSide,
+        double screenWidth, double screenHeight)
+    {
+        if (Math.Abs(scale - 1) < 0.001) return None;
+        double x = rightSide ? screenWidth : 0, y = bottomSide ? screenHeight : 0;
+        return new FitTransform(scale, Math.Round(x * (1 - scale)), Math.Round(y * (1 - scale)));
+    }
+
     // Shrinks by "scale" and puts the window's top left corner at (screenLeft, 0).
     public static FitTransform Pinned(double left, double top, double scale, double screenLeft) =>
         new(scale, Math.Round(screenLeft - left * scale), Math.Round(-top * scale));

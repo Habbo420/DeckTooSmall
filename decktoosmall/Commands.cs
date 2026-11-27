@@ -13,13 +13,16 @@ internal static class Commands
         "DeckTooSmall commands (sizes are like the GUI Scale slider, 8 = normal):\n" +
         ".dts  (open the settings window)\n" +
         ".dts on / off\n" +
+        ".dts fullmap on / off\n" +
+        ".dts fullhandbook on / off\n" +
+        ".dts fullsettings on / off\n" +
         ".dts size 10  (all menus)\n" +
         ".dts preset compact / recommended / large\n" +
         ".dts hotbar 12\n" +
         ".dts hotbar keep  (stay at that size)\n" +
         ".dts hotbar follow  (change with the main size again)\n" +
         ".dts status / reset / help\n" +
-        "Windows: text, hotbar, inventory, character, handbook, chests, map, other\n" +
+        "Windows: text, hotbar, inventory, character, handbook, chests, map, minimap, other\n" +
         "Parts: titlebars, buttons, slots";
 
     public static void Register(ICoreClientAPI capi, UiSize ui, SettingsWindow window)
@@ -59,6 +62,18 @@ internal static class Commands
                 if (!Screens.Presets.Any(p => p.Key == value)) return TextCommandResult.Error("Use compact, recommended or large");
                 ui.UsePreset(value);
                 return TextCommandResult.Success(Status(ui));
+            case "fullmap":
+                if (value is not ("on" or "off")) return TextCommandResult.Error("Use .dts fullmap on, or off");
+                ui.SetFullMap(value == "on");
+                return TextCommandResult.Success("Full-screen map is " + value + ". Reopen the map to see it.");
+            case "fullhandbook":
+                if (value is not ("on" or "off")) return TextCommandResult.Error("Use .dts fullhandbook on, or off");
+                ui.SetFullHandbook(value == "on");
+                return TextCommandResult.Success("Full-screen handbook is " + value + ". Reopen the Handbook to see it.");
+            case "fullsettings":
+                if (value is not ("on" or "off")) return TextCommandResult.Error("Use .dts fullsettings on, or off");
+                ui.SetFullSettings(value == "on");
+                return TextCommandResult.Success("Full-screen settings window is " + value);
             case "size":
                 if (!isNumber) return TextCommandResult.Error("Type a number, for example: .dts size 10");
                 ui.SetMain(scale);

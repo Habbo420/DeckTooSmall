@@ -6,6 +6,7 @@ using HarmonyLib;
 using Vintagestory.API.Client;
 using Vintagestory.API.Config;
 using Vintagestory.Client.NoObf;
+using Vintagestory.GameContent;
 
 namespace DeckTooSmall;
 
@@ -37,7 +38,7 @@ internal static class DialogFit
         if (name is "HudHotbar" or "HudStatbar") return "hotbar";
         if (name == "GuiDialogInventory") return "inventory";
         if (name.Contains("Handbook")) return "handbook";
-        if (name == "GuiDialogWorldMap") return "map";
+        if (name == "GuiDialogWorldMap") return dialog.DialogType == EnumDialogType.HUD ? "minimap" : "map";
         if (name.Contains("BlockEntity") || name.Contains("CreatureContents")) return "chests";
         return "other";
     }
@@ -152,6 +153,61 @@ internal static class DialogFit
     private static bool IsWindow(GuiDialog dialog) =>
         dialog.DialogType == EnumDialogType.Dialog && dialog.IsOpened();
 
+    private static bool IsFullMap(GuiDialog dialog) =>
+        FullMap.Wanted && dialog is GuiDialogWorldMap && IsWindow(dialog);
+
+    private static bool IsFullHandbook(GuiDialog dialog) =>
+        FullHandbook.Wanted && dialog is GuiDialogHandbook && IsWindow(dialog);
+
+    private static bool IsFullScreen(GuiDialog dialog) =>
+        IsFullMap(dialog) || IsFullHandbook(dialog) || (dialog is SettingsWindow { FullScreen: true } && IsWindow(dialog));
+
+    // Full-screen windows cover the hotbar and health bars, so hide those.
+    private static bool HiddenByFullScreen(GuiDialog dialog)
+    {
+        if (!IsBottomBar(dialog)) return false;
+        foreach (GuiDialog open in capi.Gui.OpenedGuis)
+        {
+            if (IsFullScreen(open)) return true;
+        }
+        return false;
+    }
+
+    private static bool IsMinimap(GuiDialog dialog) =>
+        dialog is GuiDialogWorldMap && dialog.DialogType == EnumDialogType.HUD && dialog.IsOpened();
+
+    // The minimap grows or shrinks from whichever screen corner it sits in.
+    private static FitTransform Minimap(GuiDialog dialog, double screenWidth, double screenHeight)
+    {
+        if (Area(dialog) is not { } area) return FitTransform.None;
+        return FitTransform.FromCorner(Ui!.Zoom("minimap"),
+            area.Left + area.Width / 2 > screenWidth / 2, area.Top + area.Height / 2 > screenHeight / 2,
+            screenWidth, screenHeight);
+    }
+
+    // Extra map panels (ore search and so on) normally sit right of the map,
+    // which is off screen here. Put them inside its top right corner.
+    private static void ArrangeMapPanels(GuiDialog map, GuiComposer main)
+    {
+        double scale = RuntimeEnv.GUIScale;
+        double y = main.Bounds.renderY + 40 * scale;
+        foreach (GuiComposer panel in MapPanels(map, main))
+        {
+            MoveTo(panel, main.Bounds.renderX + main.Bounds.OuterWidth - panel.Bounds.OuterWidth - 10 * scale, y);
+            y += panel.Bounds.OuterHeight + 5 * scale;
+        }
+    }
+
+    private static List<GuiComposer> MapPanels(GuiDialog map, GuiComposer main)
+    {
+        var panels = new List<GuiComposer>();
+        foreach (GuiComposer composer in map.Composers.Values)
+        {
+            if (composer != null && composer != main && composer.Enabled) panels.Add(composer);
+        }
+        return panels;
+    }
+
     // The tool picker pops up around the crosshair, so it should stay there.
     private static bool StaysPut(GuiDialog dialog) => dialog.GetType().Name == "GuiDialogToolMode";
 
@@ -258,7 +314,25 @@ internal static class DialogFit
         if (screenWidth <= 0 || screenHeight <= 0) return FitTransform.None;
 
         if (IsBottomBar(dialog)) return BottomBars(screenWidth, screenHeight);
+        if (IsMinimap(dialog)) return Minimap(dialog, screenWidth, screenHeight);
+        if (IsFullMap(dialog) && dialog.Composers["single"] is { } map)
+        {
+            ArrangeMapPanels(dialog, map);
+            // Top of the screen, just right of the room for the tabs.
+            return new FitTransform(1, Math.Round(FullMap.TabRoom - map.Bounds.renderX), Math.Round(-map.Bounds.renderY));
+        }
+        if (IsFullHandbook(dialog) && dialog.Composers["single"] is { } book)
+        {
+            // Beside the room for its tabs; shrunk only if it still would not fit.
+            double room = FullHandbook.TabRoom;
+            double shrink = Math.Min(1, Math.Min((screenWidth - room) / book.Bounds.OuterWidth,
+                screenHeight / book.Bounds.OuterHeight));
+            return FitTransform.Pinned(book.Bounds.renderX, book.Bounds.renderY, shrink, room);
+        }
         if (!IsWindow(dialog) || Area(dialog) is not { } own) return FitTransform.None;
+
+        // Built to the size of the screen already; just put it in the corner.
+        if (dialog is SettingsWindow { FullScreen: true }) return new FitTransform(1, Math.Round(-own.Left), Math.Round(-own.Top));
 
         FitTransform fit;
         if (StaysPut(dialog))
@@ -269,10 +343,10 @@ internal static class DialogFit
         {
             // Keep our own list in the order windows were opened. The game's list
             // is reordered by clicking, which would make windows swap places.
-            openOrder.RemoveAll(d => !IsWindow(d));
+            openOrder.RemoveAll(d => !IsWindow(d) || IsFullScreen(d));
             foreach (GuiDialog open in capi.Gui.OpenedGuis)
             {
-                if (IsWindow(open) && !StaysPut(open) && !openOrder.Contains(open)) openOrder.Add(open);
+                if (IsWindow(open) && !StaysPut(open) && !IsFullScreen(open) && !openOrder.Contains(open)) openOrder.Add(open);
             }
 
             var areas = new List<(double, double, double, double, double)>();
@@ -365,10 +439,24 @@ internal static class DialogFit
         }
     }
 
+    // The game draws these panels before the map, which would hide them now.
+    private static void DrawMapPanels(GuiDialog dialog, GuiComposer map, float dt)
+    {
+        capi.Render.GlPushMatrix();
+        capi.Render.GlTranslate(0f, 0f, 300f);
+        foreach (GuiComposer panel in MapPanels(dialog, map)) panel.Render(dt);
+        capi.Render.GlPopMatrix();
+    }
+
     public static void OnRenderGUIFitted(GuiDialog d, float a)
     {
+        if (HiddenByFullScreen(d)) return;
         using var slots = Parts.NormalSlots(IsBottomBar(d));
-        DrawWithFit(d, () => d.OnRenderGUI(a));
+        DrawWithFit(d, () =>
+        {
+            d.OnRenderGUI(a);
+            if (IsFullMap(d) && d.Composers["single"] is { } map) DrawMapPanels(d, map, a);
+        });
     }
 
     public static void OnFinalizeFrameFitted(GuiDialog d, float a)
@@ -397,24 +485,28 @@ internal static class DialogFit
 
     public static void OnMouseDownFitted(GuiDialog d, MouseEvent a)
     {
+        if (HiddenByFullScreen(d)) return;
         using var slots = Parts.NormalSlots(IsBottomBar(d));
         WithFit(Measure(d), a, () => d.OnMouseDown(a));
     }
 
     public static void OnMouseUpFitted(GuiDialog d, MouseEvent a)
     {
+        if (HiddenByFullScreen(d)) return;
         using var slots = Parts.NormalSlots(IsBottomBar(d));
         WithFit(Measure(d), a, () => d.OnMouseUp(a));
     }
 
     public static void OnMouseMoveFitted(GuiDialog d, MouseEvent a)
     {
+        if (HiddenByFullScreen(d)) return;
         using var slots = Parts.NormalSlots(IsBottomBar(d));
         WithFit(Measure(d), a, () => d.OnMouseMove(a));
     }
 
     public static void OnMouseWheelFitted(GuiDialog d, MouseWheelEventArgs a)
     {
+        if (HiddenByFullScreen(d)) return;
         using var slots = Parts.NormalSlots(IsBottomBar(d));
         WithFit(Measure(d), null, () => d.OnMouseWheel(a));
     }

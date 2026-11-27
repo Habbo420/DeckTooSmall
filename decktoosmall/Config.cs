@@ -8,6 +8,10 @@ public class DeckTooSmallConfig
 {
     public bool Enabled { get; set; } = true;
 
+    public bool FullScreenMap { get; set; } = true;
+    public bool FullScreenHandbook { get; set; } = true;
+    public bool FullScreenSettings { get; set; } = true;
+
     // The main size, used by all menus unless they have their own.
     public float UiScale { get; set; } = 1.25f;
 
@@ -73,9 +77,10 @@ internal static class Group
         ("hotbar", "Hotbar and health"),
         ("inventory", "Inventory"),
         ("character", "Character screen"),
-        ("handbook", "Handbook"),
+        ("handbook", "Handbook (windowed)"),
         ("chests", "Chests and machines"),
-        ("map", "World map"),
+        ("map", "World map (windowed)"),
+        ("minimap", "Minimap"),
         ("other", "Other windows"),
     };
 }

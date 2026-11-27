@@ -7,7 +7,7 @@
         "Unknown"
     ],
     "description": "Makes the UI usable on small screens such as the Steam Deck.",
-    "version": "2.0.0",
+    "version": "2.2.1",
     "side": "Client",
     "requiredOnClient": true,
     "requiredOnServer": false,

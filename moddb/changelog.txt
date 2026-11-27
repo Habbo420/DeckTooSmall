@@ -1,0 +1,6 @@
+2.2.6 - First public release
+- Own UI size, chosen from screen resolution, with presets
+- Windows fit the screen and line up from the top left
+- Optional full-screen world map, Handbook and settings window
+- Sizes per window and for text, title bar icons, buttons and item slots
+- F7 / F8 / F9 keys and .dts chat commands

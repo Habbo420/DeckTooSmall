@@ -19,8 +19,11 @@ Run `./build.sh`; the mod zip appears in `Releases/`.
 | Version | What is kept | Notes |
 |---|---|---|
 | 1.1.0 | source file only, `archive/v1/` | First attempt: bigger text only |
+| 2.0.0 | built zip | Shrinks any window that does not fit the screen |
+| 2.0.1 | built zip | Own UI size, windows pinned top left |
+| 2.0.2 | built zip | F7 / F8 to change the size |
 | 2.0.5 | built zip | Fits windows to the screen, top left, own UI size |
 | 2.1.0 | built zip | Settings window, per-window sizes, text size, chat commands |
 | 2.2.1 | built zip and the source in this repository | Title bar, button and slot sizes |
 
-Versions 2.0.0 to 2.0.4 and 2.2.0 were not kept.
+Versions 2.0.3, 2.0.4 and 2.2.0 were not kept.

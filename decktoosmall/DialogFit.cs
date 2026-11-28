@@ -76,6 +76,15 @@ internal static class DialogFit
             if (redirected == 0) throw new MissingMethodException("Nothing to redirect in GuiManager." + name);
         }
 
+        // Before any window sees a click, the game checks "was this outside every
+        // window?" and if so throws the item you are holding. It must use the
+        // places where windows are shown, not where the game first built them.
+        Type dropper = Find(typeof(ClientMain).Assembly.GetType("Vintagestory.Client.NoObf.HudDropItem"), "HudDropItem");
+        redirected = 0;
+        harmony.Patch(Find(AccessTools.DeclaredMethod(dropper, "OnMouseDown"), "HudDropItem.OnMouseDown"),
+            transpiler: new HarmonyMethod(typeof(DialogFit), nameof(Redirect)));
+        if (redirected != 1) throw new MissingMethodException("Expected one window check in HudDropItem, found " + redirected);
+
         Type platform = Find(typeof(ClientMain).Assembly.GetType("Vintagestory.Client.NoObf.ClientPlatformWindows"), "platform");
         harmony.Patch(Find(AccessTools.DeclaredMethod(platform, "GlScissor"), "GlScissor"),
             prefix: new HarmonyMethod(typeof(DialogFit), nameof(ShrinkClipping)));
@@ -511,7 +520,7 @@ internal static class DialogFit
         WithFit(Measure(d), null, () => d.OnMouseWheel(a));
     }
 
-    // The game checks "is the mouse over this window?" when you scroll.
+    // The game checks "is the mouse over this window?" when you scroll or click.
     public static bool PointInsideFitted(ElementBounds bounds, int x, int y)
     {
         foreach (GuiDialog dialog in capi.Gui.OpenedGuis)
@@ -519,6 +528,7 @@ internal static class DialogFit
             foreach (GuiComposer composer in dialog.Composers.Values)
             {
                 if (composer?.Bounds != bounds) continue;
+                if (HiddenByFullScreen(dialog)) return false; // not on screen right now
                 FitTransform fit = Measure(dialog);
                 return bounds.PointInside(fit.UnmapX(x), fit.UnmapY(y));
             }

@@ -1,3 +1,7 @@
+2.2.7
+- Fixed: items were thrown on the ground when clicking some inventory and
+  crafting slots in a moved or resized window
+
 2.2.6 - First public release
 - Own UI size, chosen from screen resolution, with presets
 - Windows fit the screen and line up from the top left

@@ -60,6 +60,7 @@ Run `./build.sh`; the mod zip appears in `Releases/`.
 | 2.2.3 | built zip, source at tag `v2.2.3` | Character screen panels stay snug |
 | 2.2.4 | built zip | Preset buttons no longer overlap |
 | 2.2.5 | built zip | Full-screen map, Handbook and settings; minimap size |
-| 2.2.6 | built zip and the source in this repository | Full screen is optional; author name (not yet tested) |
+| 2.2.6 | built zip | Full screen is optional; author name. Has the item-dropping bug fixed in 2.2.7 |
+| 2.2.7 | built zip and the source in this repository | Fixes items being thrown when clicking some slots (not yet tested) |
 
 Versions 2.0.3, 2.0.4 and 2.2.0 were not kept.
